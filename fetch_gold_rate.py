@@ -1,30 +1,38 @@
 import json
+import os
 import re
-import os
 from datetime import date
-
-from twilio.rest import Client
-import os
-
 import matplotlib.pyplot as plt
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 
+from twilio.rest import Client
+
+
+# -----------------------------
+# CONFIG
+# -----------------------------
+
 url = "https://www.goodreturns.in/gold-rates/"
+file_path = "gold_rates.json"
+chart_path = "docs/gold_price_chart.png"
 
-DATA_FILE = "gold_rates.json"
+# public chart URL (used by Twilio)
+chart_url = "https://raw.githubusercontent.com/kaleems55/gold-rate-tracker/main/docs/gold_price_chart.png"
 
+
+# -----------------------------
+# FETCH GOLD RATE
+# -----------------------------
 
 options = Options()
-
 options.add_argument("--headless=new")
+options.add_argument("--incognito")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
-options.add_argument("--disable-gpu")
 options.add_argument("--window-size=1920,1080")
-options.add_argument("--incognito")
 
 driver = webdriver.Chrome(options=options)
 
@@ -44,64 +52,129 @@ try:
         raise Exception("Gold rate not found")
 
     rate = int(match.group(1).replace(",", ""))
-    today = str(date.today())
-
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE) as f:
-            data = json.load(f)
-    else:
-        data = []
-
-    if not any(d["date"] == today for d in data):
-        data.append({
-            "date": today,
-            "rate": rate
-        })
-
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=4)
 
     print("Today's rate saved:", rate)
 
-    last10 = data[-10:]
+finally:
+    driver.quit()
 
-    dates = [d["date"] for d in last10]
-    rates = [d["rate"] for d in last10]
 
-    plt.figure(figsize=(10,5))
-    plt.plot(dates, rates, marker="o")
-    plt.title("Gold Price Last 10 Days")
-    plt.xlabel("Date")
-    plt.ylabel("22K Price (INR)")
-    plt.xticks(rotation=45)
-    plt.grid(True)
+# -----------------------------
+# LOAD HISTORY
+# -----------------------------
 
-    plt.tight_layout()
+if os.path.exists(file_path):
 
-    plt.savefig("docs/gold_price_chart.png")
+    with open(file_path, "r") as f:
+        history = json.load(f)
 
-    # ---------- SEND WHATSAPP MESSAGE ----------
+else:
+    history = []
 
-    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
 
-    client = Client(account_sid, auth_token)
+# -----------------------------
+# APPEND TODAY PRICE
+# -----------------------------
 
-    chart_url = "https://raw.githubusercontent.com/kaleems55/gold-rate-tracker/main/gold_price_chart.png"
+today = str(date.today())
+
+today_data = {
+    "date": today,
+    "gold_rate_22k": rate
+}
+
+if history and history[-1]["date"] == today:
+    history[-1]["gold_rate_22k"] = rate
+else:
+    history.append(today_data)
+
+
+# -----------------------------
+# SAVE JSON
+# -----------------------------
+
+with open(file_path, "w") as f:
+    json.dump(history, f, indent=4)
+
+
+# -----------------------------
+# GENERATE CHART (LAST 10 DAYS)
+# -----------------------------
+
+recent = history[-10:]
+
+dates = [item["date"] for item in recent]
+prices = [item["gold_rate_22k"] for item in recent]
+
+plt.figure(figsize=(8,4))
+plt.plot(dates, prices, marker="o")
+plt.title("Gold Price (Last 10 Days)")
+plt.xlabel("Date")
+plt.ylabel("Price ₹/g")
+plt.xticks(rotation=45)
+plt.tight_layout()
+
+os.makedirs("docs", exist_ok=True)
+plt.savefig(chart_path)
+plt.close()
+
+print("Chart generated")
+
+
+# -----------------------------
+# WEEKLY PRICE ALERT
+# -----------------------------
+
+alert_text = ""
+
+if len(history) >= 7:
+
+    price_today = history[-1]["gold_rate_22k"]
+    price_week_ago = history[-7]["gold_rate_22k"]
+
+    weekly_change = price_today - price_week_ago
+
+    if weekly_change < 0:
+        alert_text = f"Alert: price dropped ₹{abs(weekly_change)} this week"
+
+    elif weekly_change > 0:
+        alert_text = f"Alert: price increased ₹{weekly_change} this week"
+
+    else:
+        alert_text = "Price unchanged this week"
+
+
+# -----------------------------
+# SEND WHATSAPP MESSAGE
+# -----------------------------
+
+account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+
+if account_sid and auth_token:
 
     try:
+
+        client = Client(account_sid, auth_token)
+
         message = client.messages.create(
+
             from_="whatsapp:+14155238886",
-            to="whatsapp:+919500277388",
-            body=f"Gold Rate Today: ₹{rate}/gram\n\n10-day trend chart:",
+            to="whatsapp:+1613XXXXXXX",   # replace with your number
+
+            body=f"""
+Gold Rate Today: ₹{rate}/gram
+
+{alert_text}
+
+10-day trend chart attached.
+""",
+
             media_url=[chart_url]
+
         )
 
         print("WhatsApp message sent")
+
     except Exception as e:
         print("Twilio error:", e)
-
-
-finally:
-
-    driver.quit()
