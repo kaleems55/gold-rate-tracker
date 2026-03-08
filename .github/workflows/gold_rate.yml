@@ -7,15 +7,33 @@ on:
 
 jobs:
   run-script:
+
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - run: pip install -r requirements.txt
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
 
-      - run: python fetch_gold_rate.py
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run script
+        run: python fetch_gold_rate.py
+
+      - name: Commit updated JSON
+        run: |
+          git config --global user.name "bot"
+          git config --global user.email "bot@example.com"
+          git add gold_rates.json
+          git commit -m "Update gold rate" || echo "No changes"
+          git push
