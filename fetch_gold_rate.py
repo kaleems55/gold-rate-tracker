@@ -93,11 +93,8 @@ try:
         message = client.messages.create(
             from_="whatsapp:+14155238886",
             to="whatsapp:+919500277388",
-            body=f"""Gold Rate Today: ₹{rate}/gram
-    
-        10-day chart:
-        {chart_url}
-        """
+            body=f"Gold Rate Today: ₹{rate}/gram\n\n10-day trend chart:",
+            media_url=[chart_url]
         )
 
         print("WhatsApp message sent")
