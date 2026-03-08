@@ -160,7 +160,7 @@ if account_sid and auth_token:
         message = client.messages.create(
 
             from_="whatsapp:+14155238886",
-            to="whatsapp:+1613XXXXXXX",   # replace with your number
+            to="whatsapp:+919500277388",   # replace with your number
 
             body=f"""
 Gold Rate Today: ₹{rate}/gram
