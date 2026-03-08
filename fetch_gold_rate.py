@@ -35,9 +35,9 @@ options.add_argument("--disable-dev-shm-usage")
 options.add_argument("--window-size=1920,1080")
 
 driver = webdriver.Chrome(options=options)
+rate = None
 
 try:
-
     driver.get(url)
 
     WebDriverWait(driver, 30).until(
@@ -49,11 +49,16 @@ try:
     match = re.search(r'₹\s?([\d,]+)\s*per\s*gram\s*for\s*22\s*karat', page_text, re.IGNORECASE)
 
     if not match:
-        raise Exception("Gold rate not found")
+        raise Exception("Gold rate not found on page")
 
     rate = int(match.group(1).replace(",", ""))
 
     print("Today's rate saved:", rate)
+
+except Exception as e:
+    print(f"Scraping error: {e}")
+    driver.quit()
+    exit(1)  # Exit early if scraping fails
 
 finally:
     driver.quit()
@@ -64,10 +69,12 @@ finally:
 # -----------------------------
 
 if os.path.exists(file_path):
-
-    with open(file_path, "r") as f:
-        history = json.load(f)
-
+    try:
+        with open(file_path, "r") as f:
+            history = json.load(f)
+    except json.JSONDecodeError:
+        print("Warning: corrupted JSON file, starting fresh")
+        history = []
 else:
     history = []
 
@@ -93,8 +100,12 @@ else:
 # SAVE JSON
 # -----------------------------
 
-with open(file_path, "w") as f:
-    json.dump(history, f, indent=4)
+try:
+    with open(file_path, "w") as f:
+        json.dump(history, f, indent=4)
+    print("History saved")
+except Exception as e:
+    print(f"Error saving history: {e}")
 
 
 # -----------------------------
@@ -111,19 +122,24 @@ for item in recent:
         dates.append(item["date"])
         prices.append(item["gold_rate_22k"])
 
-plt.figure(figsize=(8,4))
-plt.plot(dates, prices, marker="o")
-plt.title("Gold Price (Last 10 Days)")
-plt.xlabel("Date")
-plt.ylabel("Price ₹/g")
-plt.xticks(rotation=45)
-plt.tight_layout()
+try:
+    os.makedirs("docs", exist_ok=True)
+    
+    plt.figure(figsize=(8, 4))
+    plt.plot(dates, prices, marker="o", linewidth=2, color="gold")
+    plt.title("Gold Price (Last 10 Days)", fontsize=14, fontweight="bold")
+    plt.xlabel("Date")
+    plt.ylabel("Price ₹/gram")
+    plt.xticks(rotation=45)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
 
-os.makedirs("docs", exist_ok=True)
-plt.savefig(chart_path)
-plt.close()
-
-print("Chart generated")
+    plt.savefig(chart_path, dpi=100)
+    plt.close()
+    
+    print("Chart generated successfully")
+except Exception as e:
+    print(f"Chart generation error: {e}")
 
 
 # -----------------------------
@@ -133,20 +149,19 @@ print("Chart generated")
 alert_text = ""
 
 if len(history) >= 7:
-
     price_today = history[-1]["gold_rate_22k"]
     price_week_ago = history[-7]["gold_rate_22k"]
 
     weekly_change = price_today - price_week_ago
 
     if weekly_change < 0:
-        alert_text = f"Alert: price dropped ₹{abs(weekly_change)} this week"
+        alert_text = f"📉 Alert: price dropped ₹{abs(weekly_change)} this week"
 
     elif weekly_change > 0:
-        alert_text = f"Alert: price increased ₹{weekly_change} this week"
+        alert_text = f"📈 Alert: price increased ₹{weekly_change} this week"
 
     else:
-        alert_text = "Price unchanged this week"
+        alert_text = "➡️ Price unchanged this week"
 
 
 # -----------------------------
@@ -155,18 +170,15 @@ if len(history) >= 7:
 
 account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
 auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+to_number = os.environ.get("WHATSAPP_TO", "whatsapp:+919500277388")
 
 if account_sid and auth_token:
-
     try:
-
         client = Client(account_sid, auth_token)
 
         message = client.messages.create(
-
             from_="whatsapp:+14155238886",
-            to="whatsapp:+919500277388",   # replace with your number
-
+            to=to_number,
             body=f"""
 Gold Rate Today: ₹{rate}/gram
 
@@ -174,12 +186,12 @@ Gold Rate Today: ₹{rate}/gram
 
 10-day trend chart attached.
 """,
-
             media_url=[chart_url]
-
         )
 
-        print("WhatsApp message sent")
+        print("WhatsApp message sent successfully")
 
     except Exception as e:
-        print("Twilio error:", e)
+        print(f"Twilio error: {e}")
+else:
+    print("Warning: Twilio credentials not found. Skipping WhatsApp alert.")
