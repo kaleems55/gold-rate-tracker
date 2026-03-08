@@ -3,6 +3,9 @@ import re
 import os
 from datetime import date
 
+from twilio.rest import Client
+import os
+
 import matplotlib.pyplot as plt
 
 from selenium import webdriver
@@ -76,6 +79,22 @@ try:
     plt.tight_layout()
 
     plt.savefig("gold_price_chart.png")
+
+    # ---------- SEND WHATSAPP MESSAGE ----------
+
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+
+    if account_sid and auth_token:
+        client = Client(account_sid, auth_token)
+
+        message = client.messages.create(
+            from_="whatsapp:+14155238886",
+            body=f"Gold Rate Today: ₹{rate}/gram\n\n10-day chart attached.",
+            to="whatsapp:+919500277388"
+        )
+
+        print("WhatsApp message sent")
 
 finally:
 
