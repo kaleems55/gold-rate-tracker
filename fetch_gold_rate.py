@@ -78,7 +78,7 @@ try:
 
     plt.tight_layout()
 
-    plt.savefig("gold_price_chart.png")
+    plt.savefig("docs/gold_price_chart.png")
 
     # ---------- SEND WHATSAPP MESSAGE ----------
 
