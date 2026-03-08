@@ -1,5 +1,8 @@
 name: Gold Rate Tracker
 
+permissions:
+  contents: write
+
 on:
   schedule:
     - cron: "30 19 * * *"
@@ -10,9 +13,13 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
+      TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+      TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+
     steps:
 
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -35,5 +42,6 @@ jobs:
           git config --global user.name "bot"
           git config --global user.email "bot@example.com"
           git add gold_rates.json
+          git add gold_price_chart.png
           git commit -m "Update gold rate" || echo "No changes"
           git push
