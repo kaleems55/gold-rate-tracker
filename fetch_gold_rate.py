@@ -103,8 +103,13 @@ with open(file_path, "w") as f:
 
 recent = history[-10:]
 
-dates = [item["date"] for item in recent]
-prices = [item["gold_rate_22k"] for item in recent]
+dates = []
+prices = []
+
+for item in recent:
+    if "gold_rate_22k" in item:
+        dates.append(item["date"])
+        prices.append(item["gold_rate_22k"])
 
 plt.figure(figsize=(8,4))
 plt.plot(dates, prices, marker="o")
