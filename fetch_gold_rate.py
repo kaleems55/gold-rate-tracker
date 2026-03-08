@@ -85,16 +85,16 @@ try:
     account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
     auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
 
-    if account_sid and auth_token:
-        client = Client(account_sid, auth_token)
+    client = Client(account_sid, auth_token)
 
-        message = client.messages.create(
-            from_="whatsapp:+14155238886",
-            body=f"Gold Rate Today: ₹{rate}/gram\n\n10-day chart attached.",
-            to="whatsapp:+919500277388"
-        )
+    chart_url = "https://raw.githubusercontent.com/kaleems55/gold-rate-tracker/main/gold_price_chart.png"
 
-        print("WhatsApp message sent")
+    message = client.messages.create(
+        from_="whatsapp:+14155238886",
+        to="whatsapp:+91YOUR_PHONE_NUMBER",
+        body=f"Gold Rate Today: ₹{rate}/gram\n\n10-day trend chart:",
+        media_url=[chart_url]
+    )
 
 finally:
 
