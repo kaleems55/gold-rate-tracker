@@ -92,7 +92,7 @@ try:
     try:
         message = client.messages.create(
             from_="whatsapp:+14155238886",
-            to="whatsapp:+1613XXXXXXX",
+            to="whatsapp:+919500277388",
             body=f"""Gold Rate Today: ₹{rate}/gram
     
         10-day chart:
