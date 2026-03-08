@@ -146,7 +146,7 @@ except Exception as e:
 # WEEKLY PRICE ALERT
 # -----------------------------
 
-alert_text = ""
+alert_text = "📊 Not enough data yet (need 7 days)"
 
 if len(history) >= 7:
     price_today = history[-1]["gold_rate_22k"]
@@ -163,6 +163,8 @@ if len(history) >= 7:
     else:
         alert_text = "➡️ Price unchanged this week"
 
+print(f"Alert text: {alert_text}")  # Debug line
+
 
 # -----------------------------
 # SEND WHATSAPP MESSAGE
@@ -170,26 +172,30 @@ if len(history) >= 7:
 
 account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
 auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-to_number = os.environ.get("WHATSAPP_TO", "whatsapp:+919500277388")
+# Multiple recipients
+recipients = [
+    os.environ.get("WHATSAPP_TO_1", "whatsapp:+919500277388"),
+    os.environ.get("WHATSAPP_TO_2", "whatsapp:+917358240495"),
+]
 
 if account_sid and auth_token:
     try:
         client = Client(account_sid, auth_token)
 
-        message = client.messages.create(
-            from_="whatsapp:+14155238886",
-            to=to_number,
-            body=f"""
+        for to_number in recipients:
+            message = client.messages.create(
+                from_="whatsapp:+14155238886",
+                to=to_number,
+                body=f"""
 Gold Rate Today: ₹{rate}/gram
 
 {alert_text}
 
 10-day trend chart attached.
 """,
-            media_url=[chart_url]
-        )
-
-        print("WhatsApp message sent successfully")
+                media_url=[chart_url]
+            )
+            print(f"WhatsApp message sent to {to_number}")
 
     except Exception as e:
         print(f"Twilio error: {e}")
